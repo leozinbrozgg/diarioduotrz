@@ -1,0 +1,5 @@
+{
+  "name": "TRZ - Calculador de Prêmios",
+  "description": "Um aplicativo para extrair informações de kills e posicionamento de screenshots de partidas de Free Fire e calcular os ganhos em um campeonato com base em regras predefinidas.",
+  "requestFramePermissions": []
+}

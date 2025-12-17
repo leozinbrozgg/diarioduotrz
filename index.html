@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TRZ - Calculador de Prêmios</title>
+    <link rel="icon" href="/logo.png" type="image/png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" integrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['Inter', 'sans-serif'],
+              display: ['Anton', 'sans-serif'],
+            },
+            colors: {
+              'brand-primary': '#ffb014',
+              'brand-accent': '#ffb014',
+              'dark-bg': '#0D1117',
+              'dark-surface': '#161B22',
+              'dark-border': '#30363D',
+              'dark-text-primary': '#c9d1d9',
+              'dark-text-secondary': '#8b949e',
+            },
+            animation: {
+              'fade-in-up': 'fade-in-up 0.5s ease-out forwards',
+              'bounce': 'bounce 1s infinite',
+            },
+            keyframes: {
+              'fade-in-up': {
+                '0%': { opacity: '0', transform: 'translateY(20px)' },
+                '100%': { opacity: '1', transform: 'translateY(0)' },
+              },
+              'bounce': {
+                '0%, 100%': {
+                  transform: 'translateY(-25%)',
+                  animationTimingFunction: 'cubic-bezier(0.8, 0, 1, 1)',
+                },
+                '50%': {
+                  transform: 'translateY(0)',
+                  animationTimingFunction: 'cubic-bezier(0, 0, 0.2, 1)',
+                },
+              },
+            },
+          }
+        },
+        plugins: [
+          function({ addUtilities }) {
+            addUtilities({
+              '.text-gradient-gold': {
+                'background': 'linear-gradient(to right, #FFD700, #FDB813)',
+                '-webkit-background-clip': 'text',
+                '-webkit-text-fill-color': 'transparent',
+              },
+               '.text-gradient-silver': {
+                'background': 'linear-gradient(to right, #C0C0C0, #EAEAEA)',
+                '-webkit-background-clip': 'text',
+                '-webkit-text-fill-color': 'transparent',
+              },
+              '.text-gradient-bronze': {
+                'background': 'linear-gradient(to right, #CD7F32, #A0522D)',
+                '-webkit-background-clip': 'text',
+                '-webkit-text-fill-color': 'transparent',
+              },
+            })
+          }
+        ]
+      }
+    </script>
+<script type="importmap">
+{
+  "imports": {
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "react": "https://aistudiocdn.com/react@^19.2.0",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.28.0"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+<style>
+  html { height: 100%; scrollbar-gutter: stable; }
+  /* Fallback para navegadores sem suporte a scrollbar-gutter */
+  body { min-height: 100%; overflow-y: scroll; }
+</style>
+</head>
+<body class="bg-dark-bg text-dark-text-primary font-sans">
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+</body>
+</html>
