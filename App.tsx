@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
-import { ImageUploader } from './components/ImageUploader';
+import { ImageUploader, UploaderMode } from './components/ImageUploader';
 import { ResultsDisplay } from './components/ResultsDisplay';
 import { Loader } from './components/Loader';
 import { TournamentSettings } from './components/TournamentSettings';
@@ -7,6 +7,8 @@ import { Tabs } from './components/Tabs';
 import { Header } from './components/Header';
 import Dashboard from './components/Dashboard';
 import { analyzeImage } from './services/geminiService';
+import { extractTextFromImages, formatExtractedTexts } from './services/ocrService';
+import { calculateValuesFromText, CalculateResult } from './services/calculatorService';
 import type { MatchResult, RankedResult, PrizeRules, AdjustedPrizes, AnalysisRecord } from './types';
 import { PLACEMENT_PRIZES, KILL_PRIZE, ENTRY_FEE_PER_DUO, DEFAULT_SLOTS } from './constants';
 import { UploadIcon, SettingsIcon, RankingIcon } from './components/icons';
@@ -21,6 +23,18 @@ const App: React.FC = () => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'uploader' | 'settings' | 'ranking' | 'dashboard'>('settings');
+
+  // Extractor mode state
+  const [uploaderMode, setUploaderMode] = useState<UploaderMode>('ranking');
+  const [extractedText, setExtractedText] = useState<string | null>(null);
+  const [isExtracting, setIsExtracting] = useState(false);
+  const [extractError, setExtractError] = useState<string | null>(null);
+
+  // Calculator mode state
+  const [calculatorText, setCalculatorText] = useState('');
+  const [calculatorResult, setCalculatorResult] = useState<CalculateResult | null>(null);
+  const [isCalculating, setIsCalculating] = useState(false);
+  const [calculateError, setCalculateError] = useState<string | null>(null);
 
   // Tournament Settings State
   const [slotsSold, setSlotsSold] = useState(DEFAULT_SLOTS);
@@ -40,14 +54,14 @@ const App: React.FC = () => {
       if (s.prizeRules) setPrizeRules(s.prizeRules);
       if (s.adjustmentMode) setAdjustmentMode(s.adjustmentMode);
       if (s.fixedProfit != null) setFixedProfit(s.fixedProfit);
-    }).catch(() => {});
+    }).catch(() => { });
     const onFocus = () => {
       supabaseSettings.get().then(s => {
         if (s.entryFee != null) setEntryFee(s.entryFee);
         if (s.prizeRules) setPrizeRules(s.prizeRules);
         if (s.adjustmentMode) setAdjustmentMode(s.adjustmentMode);
         if (s.fixedProfit != null) setFixedProfit(s.fixedProfit);
-      }).catch(() => {});
+      }).catch(() => { });
     };
     window.addEventListener('focus', onFocus);
     const channel = supabase.channel('settings-sync')
@@ -67,7 +81,7 @@ const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    supabaseSettings.save({ adjustmentMode, fixedProfit }).catch(() => {});
+    supabaseSettings.save({ adjustmentMode, fixedProfit }).catch(() => { });
   }, [adjustmentMode, fixedProfit]);
 
   const getDefaultTournamentName = () => {
@@ -79,7 +93,7 @@ const App: React.FC = () => {
 
   const adjustedPrizes = useMemo<AdjustedPrizes | null>(() => {
     if (slotsSold === 0) return null;
-    
+
     if (slotsSold === DEFAULT_SLOTS) {
       return { placementPrizes: prizeRules.placementPrizes, killPrize: prizeRules.killPrize };
     }
@@ -127,17 +141,17 @@ const App: React.FC = () => {
       return prev.filter((_, i) => i !== index);
     });
   }, []);
-  
-  const calculateEarnings = useCallback((matchResult: MatchResult): { placementPrize: number; killPrize: number; total: number; } => {
-      const prizes = adjustedPrizes ?? { placementPrizes: prizeRules.placementPrizes, killPrize: prizeRules.killPrize };
-      const placement = matchResult.placement ?? 0;
-      const kills = matchResult.kills ?? 0;
-      
-      const placementPrize = prizes.placementPrizes[placement] ?? 0;
-      const killPrize = kills * prizes.killPrize;
-      const total = placementPrize + killPrize;
 
-      return { placementPrize, killPrize, total };
+  const calculateEarnings = useCallback((matchResult: MatchResult): { placementPrize: number; killPrize: number; total: number; } => {
+    const prizes = adjustedPrizes ?? { placementPrizes: prizeRules.placementPrizes, killPrize: prizeRules.killPrize };
+    const placement = matchResult.placement ?? 0;
+    const kills = matchResult.kills ?? 0;
+
+    const placementPrize = prizes.placementPrizes[placement] ?? 0;
+    const killPrize = kills * prizes.killPrize;
+    const total = placementPrize + killPrize;
+
+    return { placementPrize, killPrize, total };
   }, [adjustedPrizes, prizeRules]);
 
   const sleep = (ms: number) => new Promise((r) => setTimeout(r, Math.max(0, ms)));
@@ -163,9 +177,9 @@ const App: React.FC = () => {
       const resultsWithEarnings: RankedResult[] = allMatchResults
         .filter(mr => mr.placement !== null && mr.placement > 0)
         .map((matchResult, index) => ({
-            id: `${matchResult.playerNames?.join('') ?? 'unknown'}-${index}`,
-            matchResult,
-            earnings: calculateEarnings(matchResult),
+          id: `${matchResult.playerNames?.join('') ?? 'unknown'}-${index}`,
+          matchResult,
+          earnings: calculateEarnings(matchResult),
         }));
 
       resultsWithEarnings.sort((a, b) => {
@@ -176,7 +190,7 @@ const App: React.FC = () => {
         const killsB = b.matchResult.kills ?? 0;
         return killsB - killsA;
       });
-      
+
       setRankedResults(resultsWithEarnings);
 
       // Persist report to LocalStorage
@@ -211,8 +225,51 @@ const App: React.FC = () => {
     setRankedResults([]);
     setError(null);
     setIsAnalyzing(false);
-    setActiveTab('uploader');
+    // Reset extractor state
+    setExtractedText(null);
+    setIsExtracting(false);
+    setExtractError(null);
+    // Reset calculator state
+    setCalculatorText('');
+    setCalculatorResult(null);
+    setIsCalculating(false);
+    setCalculateError(null);
   }, [imageUrls]);
+
+  const handleCalculate = useCallback(async () => {
+    if (!calculatorText.trim()) return;
+    setIsCalculating(true);
+    setCalculateError(null);
+    setCalculatorResult(null);
+
+    try {
+      const result = await calculateValuesFromText(calculatorText);
+      setCalculatorResult(result);
+    } catch (err) {
+      console.error(err);
+      setCalculateError(err instanceof Error ? err.message : 'Ocorreu um erro ao calcular.');
+    } finally {
+      setIsCalculating(false);
+    }
+  }, [calculatorText]);
+
+  const handleExtractText = useCallback(async () => {
+    if (imageFiles.length === 0) return;
+    setIsExtracting(true);
+    setExtractError(null);
+    setExtractedText(null);
+
+    try {
+      const texts = await extractTextFromImages(imageFiles);
+      const formatted = formatExtractedTexts(texts);
+      setExtractedText(formatted || 'Nenhum texto encontrado nas imagens.');
+    } catch (err) {
+      console.error(err);
+      setExtractError(err instanceof Error ? err.message : 'Ocorreu um erro ao extrair o texto.');
+    } finally {
+      setIsExtracting(false);
+    }
+  }, [imageFiles]);
 
   const handleSaveSettings = useCallback(async (config: { entryFee: number; prizeRules: PrizeRules }) => {
     setEntryFee(config.entryFee);
@@ -241,11 +298,23 @@ const App: React.FC = () => {
             onReset={handleReset}
             isAnalyzing={isAnalyzing}
             hasResults={hasResults}
+            mode={uploaderMode}
+            onModeChange={setUploaderMode}
+            extractedText={extractedText}
+            onExtractText={handleExtractText}
+            isExtracting={isExtracting}
+            extractError={extractError}
+            calculatorText={calculatorText}
+            onCalculatorTextChange={setCalculatorText}
+            calculatorResult={calculatorResult}
+            onCalculate={handleCalculate}
+            isCalculating={isCalculating}
+            calculateError={calculateError}
           />
         );
       case 'settings':
         return (
-          <TournamentSettings 
+          <TournamentSettings
             slotsSold={slotsSold}
             setSlotsSold={setSlotsSold}
             adjustmentMode={adjustmentMode}
@@ -266,10 +335,10 @@ const App: React.FC = () => {
             <h3 className="text-xl font-bold text-red-400">Erro na Análise</h3>
             <p className="mt-2 text-red-300">{error}</p>
             <button
-                onClick={handleReset}
-                className="mt-6 bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-5 rounded-lg transition-colors"
+              onClick={handleReset}
+              className="mt-6 bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-5 rounded-lg transition-colors"
             >
-                Tentar Novamente
+              Tentar Novamente
             </button>
           </div>
         );
@@ -285,15 +354,15 @@ const App: React.FC = () => {
       <div className="mx-auto max-w-2xl">
         <Header />
         <main>
-            <Tabs
-              tabs={tabs}
-              activeTab={activeTab}
-              setActiveTab={(tabId) => setActiveTab(tabId as any)}
-              disabled={isAnalyzing}
-            />
-            <div className="mt-8">
-              {renderContent()}
-            </div>
+          <Tabs
+            tabs={tabs}
+            activeTab={activeTab}
+            setActiveTab={(tabId) => setActiveTab(tabId as any)}
+            disabled={isAnalyzing}
+          />
+          <div className="mt-8">
+            {renderContent()}
+          </div>
         </main>
       </div>
     </div>

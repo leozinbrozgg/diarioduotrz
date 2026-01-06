@@ -2,6 +2,8 @@ import path from 'path';
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import handler from './api/analyze';
+import ocrHandler from './api/ocr';
+import calculateHandler from './api/calculate';
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, '.', '');
@@ -40,6 +42,68 @@ export default defineConfig(({ mode }) => {
 
             try {
               await (handler as any)(req, adaptedRes);
+            } catch (e: any) {
+              nodeRes.statusCode = 500;
+              nodeRes.setHeader('Content-Type', 'application/json');
+              nodeRes.end(JSON.stringify({ error: e?.message ?? 'Erro interno' }));
+            }
+          });
+        },
+      },
+      {
+        name: 'local-api-ocr',
+        configureServer(server) {
+          server.middlewares.use('/api/ocr', async (req: any, res: any) => {
+            const nodeRes = res;
+            const adaptedRes: any = {
+              status(code: number) {
+                nodeRes.statusCode = code;
+                return this;
+              },
+              json(payload: any) {
+                if (!nodeRes.getHeader('Content-Type')) {
+                  nodeRes.setHeader('Content-Type', 'application/json');
+                }
+                nodeRes.end(JSON.stringify(payload));
+              },
+              setHeader: (...args: any[]) => nodeRes.setHeader.apply(nodeRes, args),
+              getHeader: (...args: any[]) => (nodeRes as any).getHeader?.apply(nodeRes, args),
+              end: (...args: any[]) => nodeRes.end.apply(nodeRes, args),
+            };
+
+            try {
+              await (ocrHandler as any)(req, adaptedRes);
+            } catch (e: any) {
+              nodeRes.statusCode = 500;
+              nodeRes.setHeader('Content-Type', 'application/json');
+              nodeRes.end(JSON.stringify({ error: e?.message ?? 'Erro interno' }));
+            }
+          });
+        },
+      },
+      {
+        name: 'local-api-calculate',
+        configureServer(server) {
+          server.middlewares.use('/api/calculate', async (req: any, res: any) => {
+            const nodeRes = res;
+            const adaptedRes: any = {
+              status(code: number) {
+                nodeRes.statusCode = code;
+                return this;
+              },
+              json(payload: any) {
+                if (!nodeRes.getHeader('Content-Type')) {
+                  nodeRes.setHeader('Content-Type', 'application/json');
+                }
+                nodeRes.end(JSON.stringify(payload));
+              },
+              setHeader: (...args: any[]) => nodeRes.setHeader.apply(nodeRes, args),
+              getHeader: (...args: any[]) => (nodeRes as any).getHeader?.apply(nodeRes, args),
+              end: (...args: any[]) => nodeRes.end.apply(nodeRes, args),
+            };
+
+            try {
+              await (calculateHandler as any)(req, adaptedRes);
             } catch (e: any) {
               nodeRes.statusCode = 500;
               nodeRes.setHeader('Content-Type', 'application/json');

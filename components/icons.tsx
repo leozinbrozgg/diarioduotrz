@@ -60,3 +60,15 @@ export const LockIcon: React.FC<IconProps> = ({ className, ...props }) => (
 export const UnlockIcon: React.FC<IconProps> = ({ className, ...props }) => (
   <i className={`fa-solid fa-lock-open ${className}`} {...props} />
 );
+
+export const TextIcon: React.FC<IconProps> = ({ className, ...props }) => (
+  <i className={`fa-solid fa-font ${className}`} {...props} />
+);
+
+export const ClipboardIcon: React.FC<IconProps> = ({ className, ...props }) => (
+  <i className={`fa-solid fa-clipboard ${className}`} {...props} />
+);
+
+export const CalculatorIcon: React.FC<IconProps> = ({ className, ...props }) => (
+  <i className={`fa-solid fa-calculator ${className}`} {...props} />
+);
